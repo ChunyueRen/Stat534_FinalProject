@@ -1,0 +1,656 @@
+---
+title: "Statistical Learning Analysis for the Data of Iris and Wine Quality"
+author: "Chunyue Ren"
+date: "12/04/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("lmtest", repos = "http://cran.us.r-project.org")
+#install.packages("caret")
+#install.packages("tidyr")
+#install.packages("ggplot2")
+#install.packages("ggthemes")
+#install.packages("gbm")
+#install.packages("caTools")
+#install.packages("randomForest")
+#install.packages("ggthemes")
+#install.packages( "rpart.plot")
+#install.packages("tidyr")
+library(tidyr)
+library(rpart.plot)
+library(rpart)
+library(ggthemes)
+library(randomForest)
+library("caTools")
+library(caret)
+#install.packages("MASS")
+library(MASS)
+#install.packages('e1071', dependencies=TRUE)
+library(tidyr)
+library(ggthemes)
+library(caret)
+library(ggplot2)
+library(gbm)
+#install.packages("corrplot")
+#install.packages("klaR")
+#install.packages("kernlab")
+#install.packages("doSNOW")
+library(corrplot)  # graphical display of the correlation matrix
+library(caret)     # classification and regression training
+library(klaR)      # naive bayes
+library(nnet)      # neural networks (nnet and avNNet)
+library(kernlab)   # support vector machines (svmLinear and svmRadial)
+library(randomForest)  # random forest, also for recursive feature elimination
+library(gridExtra) # save dataframes as images
+library(doSNOW)    # parallel processing
+#install.packages("doParallel")
+#install.packages("kknn")
+library(doParallel)
+
+library(caret)
+library(corrplot)
+library(kknn)
+library(randomForest)
+library(kernlab)
+
+```
+
+
+
+# DataLink:
+  Iris: https://archive.ics.uci.edu/ml/machine-learning-databases/iris
+  WineQulity : https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality
+
+# 1.Introduction
+
+This project is aimed to do some statistical learning (build different model for the data set) for the data in the the UCI Repository. There are two data sets will be used in this project : iris and winequlity. I will analyze the data set using machine learning method to get the model/classifier with the best accuracy .
+
+I used the packages as below:
+"tidyr", "raprt", "rpart.plot", "ggthemes", "randomForest", "caTools", "caret", "MASS","ggplot2","gbm","carrplot","klaR","kernlab","doSNOW","gridExtra","doParallel"
+
+
+
+
+# 2.Statistical Learning for the data set of Iris.
+##2.1 View the data
+I download the data from the website,saving it as a file names iris.csv. Then to view how the data set would be like, which will tell me what kind of analysis I will apply on them.
+
+
+```{r prepare the data of Iris,warning=FALSE,echo = FALSE}
+# set the url for download
+url<-"https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+# set the filename and directory to download into
+filename<-"./iris.csv"
+# Download the file
+download.file(url=url, destfile = filename,method ="curl")
+# Read the file into the R environment
+iris_filedata<-read.csv(file = filename,header = FALSE,sep = ",")
+# View the top few rows of the data in R console
+summary(iris_filedata)
+```
+From the result, we can see that there are four properties in the table.Then I will add the name for them seperately.
+
+##2.2 Add Properties for he data table
+
+```{r set the colnames for the iris data,warning=FALSE,echo = FALSE}
+# Assigning meaningful column names
+colnames(iris_filedata)<-c("Sepal.Length","Sepal.Width","Petal.Length","Petal.Width","Species")
+head(iris_filedata,5)
+
+
+```
+
+From the result, we can see that I have added the column name, which can be used later(especially for the plot part).
+
+
+##2.3 Observe the distribution of the data
+###2.3.1 Using the hist plot
+
+```{r index,warning=FALSE,echo = FALSE}
+
+# Load the Caret package which allows us to partition the data
+
+# We use the dataset to create a partition (80% training 20% testing)
+index <- createDataPartition(iris_filedata$Species, p=0.80, list=FALSE)
+# select 20% of the data for testing
+testset <- iris_filedata[-index,]
+# select 80% of data to train the models
+trainset <- iris_filedata[index,]
+
+```
+```{r Histogram,warning=FALSE,echo = FALSE}
+
+## Histogram
+hist(trainset$Sepal.Width)
+
+```
+
+From this plot, we can see the distribution of the data. We can get a knownledge about the data distribution.
+
+###2.3.2 Using the boxplot 
+
+```{r boxplot,warning=FALSE,echo = FALSE}
+
+## Box plot to understand how the distribution varies by class of flower
+par(mfrow=c(1,4))
+  for(i in 1:4) {
+  boxplot(trainset[,i], main=names(trainset)[i])
+}
+
+
+```
+
+From the boxplot, we can have a comprehensive understanding of the data. For example, for the Sepal.Length, we know that the range of the data is about between 5.2 to 6.4; for the Sepal.Width is about 2.8 ~ 3.4; for the Petal.length is about 1.7 ~ 5.1; for the Petal.Width is about between 0.3 ~ 1.7. Meanwhile, we can get the medium of the data.
+
+
+##2.4Using plots to find the relationship between some properties
+###2.4.1Find the relationship between Petal Length and Petal Width using ggplot
+
+```{r ggplot,warning=FALSE,echo = FALSE}
+# begin by loading the library
+
+# Scatter plot
+g <- ggplot(data=trainset, aes(x = Petal.Length, y = Petal.Width))
+g <-g + 
+    geom_point(aes(color=Species, shape=Species)) +
+    xlab("Petal Length") +
+    ylab("Petal Width") +
+    ggtitle("Petal Length-Width")+
+    geom_smooth(method="lm")
+print(g)
+
+
+```
+
+From this plot, We can clearly see that the Petal Length of three different kinds of iris is obviously different. This feature is an ideal point for machine learning classification.
+
+###2.4.2Find the relationship beteween Sepal length and Species
+
+
+```{r BoxPlot,warning=FALSE,echo = FALSE}
+## Box Plot
+box <- ggplot(data=trainset, aes(x=Species, y=Sepal.Length)) +
+    geom_boxplot(aes(fill=Species)) + 
+    ylab("Sepal Length") +
+    ggtitle("Iris Boxplot") +
+    stat_summary(fun.y=mean, geom="point", shape=5, size=4) 
+print(box)
+
+
+```
+This boxplot can be seen more clearly that the distribution of the data of the property of Sepal Length. The three kind of iris have nearly different Sepal Length.
+
+
+###2.4.3Using Histogran of Sepal Width
+
+
+
+```{r GetHistogram,warning=FALSE,echo = FALSE}
+
+## Histogram
+histogram <- ggplot(data=iris, aes(x=Sepal.Width)) +
+    geom_histogram(binwidth=0.2, color="black", aes(fill=Species)) + 
+    xlab("Sepal Width") +  
+    ylab("Frequency") + 
+    ggtitle("Histogram of Sepal Width")+
+    theme_economist()
+print(histogram)
+
+
+```
+
+From this plot, we can see more clearly.
+
+###2.4.4Fit the data for different species of iris
+
+
+
+```{r facet,warning=FALSE,echo = FALSE}
+## Faceting: Producing multiple charts in one plot
+
+facet <- ggplot(data=trainset, aes(Sepal.Length, y=Sepal.Width, color=Species))+
+    geom_point(aes(shape=Species), size=1.5) + 
+    geom_smooth(method="lm") +
+    xlab("Sepal Length") +
+    ylab("Sepal Width") +
+    ggtitle("Faceting") +
+    theme_fivethirtyeight() +
+    facet_grid(. ~ Species) # Along rows
+print(facet)
+
+```
+Using facet method, we can seperate the data into three speicies. They can be applied the lineal regression method.
+
+
+###2.4.5 Show the data in another plot method
+```{r legendplot,warning=FALSE,echo = FALSE }
+ plot(iris$Petal.Length,iris$Petal.Width,col=iris$Species,pch=16)
+ legend( x="topleft", 
+        legend=levels(as.factor(iris$Species)),
+        col=c("black","red","green"), 
+        pch=c(16) )
+```
+
+
+This picture can be more intuitive to see the classification of the data. 
+Through a series of analysis and relationship display of data, we have determined the goal of our machine learning modeling and prepared for the next decision.
+
+
+
+##2.5 Machine Learning for data set of Iris
+
+Now that we have loaded the data and explored it to get a basic understanding of the relationships between the attributes, we can move to the next step which is Model Building.
+
+We will build and fit a few different models to the training set and try to learn from the trainset data.  We will later use the best model selected (or even a combination of models) to predict the classification for the testset. We will then measure how well our model is expected to perform in the real world.
+
+
+###2.5.1 Decision Tree Classifiers
+####2.5.1.1 Establish the classifier
+
+Decision Trees are a widely used set of algorithms used in Classification as well as Regression Problems in Data mining. Decision Trees classify observations by sorting them down the tree from the root node to the leaf node which provides the classification for the observation. Each node specifies a test on a particular attribute and each branch from that node represents one of the possible values for that test. These represent a form of supervised learning as trees can be first learnt using training observations and then be used to predict on the test set.
+
+There are many decision tree algorithms available and vary by the method the trees are constructed and grown. Here we will use the simple rpart algorithm to classify our data set and predict
+
+```{r rpart ,warning=FALSE,echo = FALSE}
+
+model.rpart <- rpart(Species ~ ., data = trainset,method ="class")
+summary(model.rpart)
+
+```
+
+```{r rpartplot,warning=FALSE,echo = FALSE}
+rpart.plot(model.rpart)
+
+
+```
+From this plot, we can see the decision tree above. Learning from the test data, we have establish a model successfully.
+####2.5.1.2 Test the model
+
+```{r pred ,warning=FALSE,echo = FALSE}
+## Predictions on train dataset
+pred<-table(predict(object = model.rpart,newdata = trainset[,1:4],type="class"))
+#pred
+## Checking the accuracy using a confusion matrix by comparing predictions to actual classifications
+confusionMatrix(predict(object = model.rpart,newdata = trainset[,1:4],type="class"),trainset$Species)
+## Checking accuracy on the testdata set we created initially
+pred_test<-predict(object = model.rpart,
+                   newdata = testset[,1:4],
+                   type="class")
+confusionMatrix(pred_test,testset$Species)
+
+```
+
+Our accuracy on the test set is worse than our accuracy on the training set, which is make sense. We can get the accuracy is 90%, the higher confidence range is 97.89%. That looks good. I will try another model next.
+
+###2.5.2 RandomForest Classifiers
+
+####2.5.2.1 Establish the model
+If the package has not been installed previously you might need to install it with install.packages("randomForest")
+
+```{r iris_rf,warning=FALSE,echo = FALSE}
+iris_rf <- randomForest(Species~.,data=trainset,ntree=100,proximity=TRUE)
+print(iris_rf)
+
+```
+We can see that using the current training data RF has no problem identifying the setosa individuals (class.error=0) but there is more uncertainty for assignment to the classes versicolor and virginica (clas.error ~ 0.08).
+
+
+
+####2.5.2.2 Get the importance
+
+```{r importance,warning=FALSE,echo = FALSE}
+
+importance(iris_rf)
+
+```
+We can see that Petal.width and Petal.length are the more important descriptors that differentiate between species.
+
+####2.5.2.3 Test the model
+We test our model in the traing data anad test data seperately.
+```{r confusionM,warning=FALSE,echo = FALSE}
+confusionMatrix(predict(object = iris_rf ,newdata = trainset[,1:4],type="class"),trainset$Species)
+## Performance on the test set
+pred_test<-predict(object = iris_rf,newdata = testset[,1:4],type="class")
+confusionMatrix(pred_test,testset$Species)
+```
+
+We see the power of the random forest algorithm with the perfect accuracy of classification on the training set.
+
+Even though we were able to improve our accuracy on the training set, on the test set we still are misclassifying one observations. We will next consider another class of Algorithm which we hope would improve our testset accuracy
+
+####2.5.2.4 checking the classification accuracy
+```{r PrintResult,warning=FALSE,echo = FALSE}
+#The number of correct predictions
+  print("The number of correct predictions is :")
+  print(sum(pred_test==testset$Species))
+  print("The number of all the speicies is :")
+  print(length(testset$Species))
+  print("The accuracy of RandomForest is :")
+  #the accuracy
+  print(sum(pred_test==testset$Species)/length(testset$Species))
+ 
+```
+It is also good performance for the RandomForest method. 
+
+### 2.5.3 Gradient boosting method
+
+Gradient boosting method is a machine learning technique for regression and classification problems, which produces a prediction model in the form of an ensemble of weak prediction models -—— decision trees. It builds the model in a stage-wise fashion like other boosting methods do, and it generalizes them by allowing optimization of an arbitrary differentiable loss function. I will still grow decision classification trees, but each successive tree is grown with an intent to classify the missclassified data from the previous tree correctly.
+
+
+As before the method to build a model using this algorithm is very similar to the ones we used before. As in the previous cases a lot of the difference in actual implementation of the algo’s comes from the various parameters used to optimize the algo’s. CARET package also helps standardize the optimization steps such as CROSS VALIDATION ,HYPER PARAMETER TURNING,GRID SEARCH etc.
+
+```{r iris_gbm,warning=FALSE,echo = FALSE}
+
+grid <- expand.grid(n.trees = c(1000,1500), interaction.depth=c(1:3), shrinkage=c(0.01,0.05,0.1), n.minobsinnode=c(20))
+ctrl <- trainControl(method = "repeatedcv",number = 5, repeats = 2, allowParallel = T)
+iris_gbm <- train(Species~.,data = trainset,
+                  method = "gbm", trControl = ctrl, tuneGrid = grid)
+#head(iris_gbm)
+
+```
+
+
+
+```{r ConfusionM3,warning=FALSE,echo = FALSE}
+
+## Verify the accuracy on the training set
+confusionMatrix(iris_gbm)
+
+```
+From the result, we can see that this method, we have got a accuracy of 95.42%.
+
+
+###2.5.4 K means clustering method
+This model belongs to the super class of models which follow a machine learning technique called Unsupervised Learning.
+k-means clustering is a method of vector quantization, originally from signal processing, that is popular for cluster analysis in data mining. k-means clustering aims to partition n observations into k clusters in which each observation belongs to the cluster with the nearest mean, serving as a prototype of the cluster. This results in a partitioning of the data space into Voronoi cells. k-Means minimizes within-cluster variances (squared Euclidean distances), but not regular Euclidean distances, which would be the more difficult Weber problem: the mean optimizes squared errors, whereas only the geometric median minimizes Euclidean distances. Better Euclidean solutions can for example be found using k-medians and k-medoids.
+#### 2.5.4.1 Using the model
+
+```{r Setseed,warning=FALSE,echo = FALSE}
+
+# Since Kmeans is a random start algo, we need to set the seed to ensure reproduceability
+set.seed(20)
+
+```
+Since we know there are 3 classes, we begin with 3 centers. Typically when we don’t know the classification of the dataset, we begin with a best estimate of number of classes we think it contains.
+
+Also since k-means assigns the centroids randomly we specify nstart as 20 to run the algo 20 times with 20 random starting sets of centroids and then pick the best of those 20.
+
+
+
+
+
+
+```{r irisCluster,warning=FALSE,echo = FALSE}
+
+irisCluster <- kmeans(iris[, 1:4], centers = 3, nstart = 20)
+irisCluster
+
+```
+
+
+
+```{r table2,warning=FALSE,echo = FALSE}
+# Check the classification accuracy
+table(irisCluster$cluster, iris$Species)
+
+
+```
+#### 2.5.4.2 Plot the result
+We can also plot the clusters and their centroids to see how the algo clustered the observations
+
+
+
+```{r plot_iris,warning=FALSE,echo = FALSE}
+plot(iris[c("Sepal.Length", "Sepal.Width")], col=irisCluster$cluster)
+points(irisCluster$centers[,c("Sepal.Length", "Sepal.Width")], col=1:3, pch=8, cex=2)
+
+
+```
+From the result, we can see clearly that the data is classified into three parts with the center of them.
+
+
+
+
+
+
+
+###2.5.5 Linear discriminant method
+
+Linear Discriminant Analysis model is generally used for small data sets which would otherwise suffer from small sample bias in other models. Other classes of models might not be able to pick the trends in the data correctly, so for smaller datasets, a probability based classifier such as bayesian classifiers and lda are more suitable
+
+Linear Discriminant Analysis (LDA) is also most commonly used as dimensionality reduction technique in the pre-processing step for pattern-classification and machine learning applications. The goal is to project a dataset onto a lower-dimensional space with good class-separability in order avoid overfitting (“curse of dimensionality”) and also reduce computational costs. A good discussion of this (although in Python) can be found here
+
+To use this model on our dataset we can use the CARET package
+#### 2.5.5.1 Build the model
+
+
+```{r Linear,warning=FALSE,echo = FALSE}
+
+
+set.seed(1000)
+# Fit the model
+iris_lda<-train(x = trainset[,1:4],y = trainset[,5], method = "lda",metric = "Accuracy")
+# Print the model
+print(iris_lda)
+
+```
+From the ouput, we can see that there are 4 predictors and 3 classes : 'Iris-setosa', 'Iris-versicolor', 'Iris-virginica'. The accuracy is 97.9%.
+
+#### 2.5.5.2 Training the model
+```{r 3,warning=FALSE,echo = FALSE}
+## Verify the accuracy on the training set
+pred<-predict(object = iris_lda,newdata = trainset[,1:4])
+confusionMatrix(pred,trainset$Species)
+
+
+```
+
+For the ouput we can see that the training accuracy is 98.33%. I will try it on the testing data set.
+
+
+#### 2.5.5.3 Testing the model
+```{r 4,warning=FALSE,echo = FALSE}
+
+## Performance on the test set
+pred_test<-predict(object = iris_lda,newdata = testset[,1:4])
+confusionMatrix(pred_test,testset$Species)
+
+```
+
+From the ouput, we can see that the Finally we get a better classification than what we had previously!
+
+
+
+## 2.6 Summarizing the models
+We have tried a few models on the Iris dataset which hopefully gives a broad overview of the variety of algorithms and models possible in R. We can summarize the results of our analysis by presenting the training set results for the models we employed.
+
+Compare different model we can see that LDA performs best, having the highest accuracy. For the dataset of iris, we would like to choose the model of LDA as our final model.
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 3. Statistical learning for the data set of Wine Quality
+
+## 3.1 Explore the data
+
+
+```{r Load Package,warning=FALSE,echo = FALSE}
+
+registerDoSNOW(makeCluster(3, type = 'SOCK')) 
+# Note: in caret, the functions train, rfe, sbf, bag and avNNet were given an additional argument in their respective control files called allowParallel that defaults to TRUE.
+today <- as.character(Sys.Date())
+```
+
+
+
+```{r explore the data,warning=FALSE,echo = FALSE}
+# these first 2 lines are for setting up parallel processing and can be omitted
+registerDoParallel(cores = detectCores() - 1)
+set.seed(10)
+
+white.url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv"
+white.raw <- read.csv(white.url, header = TRUE, sep = ";")
+white <- white.raw
+str(white)
+```
+The above output tells us that there are 4898 samples and 12 variables. The response variable is quality. The eleven predictor variables are of the numeric class and the response variable, quality, is of the integer class.
+
+## 3.2 Find the distribution of the wine
+```{r get the table,warning=FALSE,echo = FALSE}
+print(table(white$quality))
+
+```
+It’s clear from the above table that there is a very big class imbalance. There are 4898 samples but only 20 are of the 3 class and only 5 are of the 9 class. There are not enough samples of those classes to split the data into useable training and test sets and perform cross-validation.
+
+However, the academic paper did not make any changes to the classes (by merging classes, for example) to deal with the class imbalances. So for now, I will not make any changes to the classes so that my results can remain comparable to theirs. But in the next of the series, I’ll merge some of the classes in order to deal with the class imbalances.
+## 3.3 Visualize the data
+### 3.3.1 Visulize the attribute seperately
+To visualize the data, plots for each predictor variable will be displayed. The line on each plot shows the linear regression of quality, the response variable, as a function of the plot’s predictor variable.
+
+```{r mfrow,warning=FALSE,echo = FALSE}
+
+
+
+#par(mfrow = c(4,3))
+for (i in c(1:11)) {
+    plot(white[, i], jitter(white[, "quality"]), xlab = names(white)[i],
+         ylab = "quality", col = "firebrick", cex = 0.8, cex.lab = 1.3)
+    abline(lm(white[, "quality"] ~ white[ ,i]), lty = 2, lwd = 2)
+}
+par(mfrow = c(1,1))
+
+```
+
+
+
+
+The first thing that stands out in the plots is the presence of outliers for most of the predictor variables. The UCI wine dataset was cleaned prior to its posting, so I don’t think they are errors. However, the residual.sugar outlier is interesting. In the EU, a wine with more than 45g/l of sugar is considered a sweet wine. The outlier has a residual.sugar level of 65.8. The next highest sugar level in the dataset is 31.6. Because the sample represents a different wine category than all the others and its sugar level is twice as much as the next highest sample, I’m going to remove it from the dataset. Additionally, the sugar outlier comes from the same sample as the density outlier, so removing it cleans up the density distribution as well.
+
+### 3.3.2 Visulize the attribute together 
+
+```{r ma,warning=FALSE,echo = FALSE}
+max.sug <- which(white$residual.sugar == max(white$residual.sugar))
+white <- white[-max.sug, ]
+par(mfrow = c(1,1))
+cor.white <- cor(white)
+corrplot(cor.white, method = 'number')
+```
+Weak relationships between quality and citric.acid, free.sulfur.dioxide, and sulphates are seen in the above correlation plot as well.
+
+Density has a 0.83 correlation with residual.sugar and a -0.80 correlation with alcohol. This would be a greater concern if we were planning on training regression and/or linear models. But for now, after learning about the data, I’ve decided that non-linear classification models will be more appropriate than regression. My assumption is that the relationship between the response and predictor variables is more complex than what a regresson and/or linear model can capture.
+
+## 3.4 Machine learning for the date set of wine quality
+
+```{r Model building,warning=FALSE,echo = FALSE}
+white$quality <- as.factor(white$quality)
+inTrain <- createDataPartition(white$quality, p = 2/3, list = F)
+train.white <- white[inTrain,]
+test.white <- white[-inTrain,]
+```
+
+Three types of models will be used — k-nearest neighbours, support vector machine, and random forest.
+
+Training will be done with the help of the caret package’s train function. The cross-validation method will be 5 fold, repeated 5 times.
+
+Caret
+Caret’s train function simplfies model tuning. Through the tuneGrid argument, a grid of the hyperparameters we want to use to tune the model can be passed into the train function. The expand.grid function simplifies the creation of the grid by combining the selected hyperparameter values into every possible combination.
+
+Feature selection
+Recall that citric.acid, free.sulfur.dioxide, and sulphates had the weakest correlations with quality. However, I have decided that linear and/or regression methods are not the best choice for this data, so non-linear feature selection methods will be tried.
+
+I tried a few feature selecton methods to see what they would return, and most of them retained all the predictors or only excluded 1 at the most. So, I’ve decided not to use feature selection while training and tuning the models.
+
+
+
+###3.4.1 Knn method
+
+Preprocessing
+K-nearest neighbours uses distance to classify the response variable. Hence, it is necessary to standardize the predictor variables. This is to prevent predictors with larger ranges from being over-emphasized by the algorithm. The preProcess argument in the train function will be used to center and scale the predictors, i.e. standardization.
+
+k-nearest neighbours
+For k-nearest neighbours, 5 kmax, 2 distance, and 3 kernel values will be used. For the distance value, 1 is the Manhattan distance, and 2 is the Euclidian distance.
+
+```{r knn,warning=FALSE,echo = FALSE}
+t.ctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 5)
+kknn.grid <- expand.grid(kmax = c(3, 5, 7 ,9, 11), distance = c(1, 2),
+                         kernel = c("rectangular", "gaussian", "cos"))
+kknn.train <- train(quality ~ ., data = train.white, method = "kknn",
+                    trControl = t.ctrl, tuneGrid = kknn.grid,
+                    preProcess = c("center", "scale"))
+plot(kknn.train)
+kknn.train$bestTune
+```
+
+
+From this plot, we can see that cos kernel using a distance of 1 outperforms the alternatives. The best value for k is 7.
+
+### 3.4.2 RandomForest Method
+```{r Random Forest,warning=FALSE,echo = FALSE}
+rf.grid <- expand.grid(mtry = 1:11)
+rf.train <- train(quality ~ ., data = train.white, method = "rf",
+                  trControl = t.ctrl, tuneGrid = rf.grid,
+                  preProcess = c("center", "scale"))
+plot(rf.train)
+rf.train$bestTune
+```
+
+From this plot, we can conclude that an mtry of 1 is like using univariate decision trees. I ran the train function again using an ntree of 1000 to see if the result of 1 would stick, and it did. So, I’m going to keep mtry = 1 as the best value.
+
+###3.4.3 SVM method
+```{r SVM,warning=FALSE,echo = FALSE}
+svm.grid <- expand.grid(C = 2^(1:3), sigma = seq(0.25, 2, length = 8))
+svm.train <- train(quality ~ ., data = train.white, method = "svmRadial",
+                   trControl = t.ctrl, tuneGrid = svm.grid,
+                   preProcess = c("center", "scale"))
+plot(svm.train)
+svm.train$bestTune
+```
+
+From this plot, we can see that the best performance will be when the value of sigma is 0.75 and the value of C is 2.
+
+###3.5.4Model Selection
+```{r modelselection, warning=FALSE,echo = FALSE}
+kknn.predict <- predict(kknn.train, test.white)
+confusionMatrix(kknn.predict, test.white$quality)
+
+
+rf.predict <- predict(rf.train, test.white)
+confusionMatrix(rf.predict, test.white$quality)
+
+
+svm.predict <- predict(svm.train, test.white)
+confusionMatrix(rf.predict, test.white$quality)
+```
+
+After modeling the three models above, we can compare the result of all of them.
+
+From the result, we can see that the accuracy for three model is 60.6%, 67.7% and 67.6% seperately. The later two will have a good performance. I prefer to choose the one with good performance.
+
+#4.Conclusion 
+
+Using the data set of IRIS and WINE QUALITY, I attempt to explore the data first to find out the potential relationship and regulation. Through this method, I will use reasonable model to apply on this data to find which one with the best parameter will get the best result. Finally, I compare different models to try to find the perfect one.
+
+In this work, I call for “Decision-Driven” approach rather than “Data-Driven” approach. In the case, building the machine learning model, the main difference between these different approaches is in the Decision Driven approach, we only collect, analyze, find the pattern in the data that has following four characteristics:
+
+    a.We must be able to view the result of the model (here the model is machine learning algorithm)
+    b.The model found from the data must have the potential to change our prior belief in the decision context
+    c.The model must have the ability to change the decision on the hand
+    d.The value added to the decision through model must exceed its cost
+    
+    
+For the first data set of IRIS, I will choose the model of Lineral Discriminant Method.
+For the second data set of WINE QUALITY, I will choose the model of RandomForest Method.
+
+
+
+
